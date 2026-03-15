@@ -4,7 +4,8 @@
 
 1. **Open this directory in Claude Code:**
    ```bash
-   claude-code claude-code-mode/sentiment-research
+   cd examples/sentiment-classification
+   claude-code .
    ```
 
 2. **Tell Claude what to do:**

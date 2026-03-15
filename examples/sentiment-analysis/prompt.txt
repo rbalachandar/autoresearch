@@ -1,3 +1,0 @@
-You are a sentiment classifier. Analyze the given text and classify its sentiment as either "positive", "negative", or "neutral".
-
-Respond with only the sentiment classification.

@@ -1,120 +1,67 @@
 # AutoResearch
 
-> General-purpose autonomous research framework for AI agents
+> Claude Code mode for autonomous AI agent research
+
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Claude Code](https://img.shields.io/badge/Claude_Code-native-green.svg)](https://claude.ai/code)
 
 Inspired by [Andrej Karpathy's autoresearch](https://github.com/karpathy/autoresearch), this framework enables AI agents to autonomously experiment, iterate, and improve systems while humans only set the research agenda.
 
 ## The Core Idea
 
-You don't touch the code directly. Instead, you edit `program.md` which defines:
-- **What** to optimize
-- **How** to measure success
-- **Constraints and guidelines**
+You don't touch the code directly. Instead, you use the setup script to create a research project, then let Claude Code do the autonomous research:
 
-The AI agent then autonomously:
-1. Reads the current state
-2. Proposes changes
-3. Runs experiments
-4. Evaluates results
-5. Keeps or discards changes
-6. Repeats
-
-## Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/autoresearch-framework.git
-cd autoresearch-framework
-
-# Install with uv (recommended)
-uv sync
-
-# Or with pip
-pip install -e .
-```
+1. **Create a research project** - Using the setup script
+2. **Open in Claude Code** - The AI reads `program.md`
+3. **Autonomous iteration** - Claude experiments, evaluates, and improves
+4. **Review results** - See what worked and what didn't
 
 ## Quick Start
 
-### 1. Initialize a Prompt Optimization Experiment
+### 1. Create a Prompt Optimization Research Project
 
 ```bash
-autoresearch init-prompt ./my-first-experiment \
+python setup.py prompt ./my-experiment \
   --task "Extract the main sentiment from text (positive, negative, or neutral)" \
-  --eval-cases ./examples/sentiment.json
+  --eval-cases ./examples/sentiment-classification/eval_cases.json \
+  --max-experiments 20 \
+  --time 30
 ```
 
 This creates:
 ```
-my-first-experiment/
-├── program.md          # Edit this to define your research agenda
-├── prompt.txt          # The file that gets optimized
-├── eval_cases.json     # Test cases for evaluation
-└── run_eval.py         # Evaluation script
+my-experiment/
+├── program.md          # Instructions for Claude (read this first!)
+├── prompt.txt          # The prompt to optimize
+├── eval.py             # Evaluation script
+├── eval_cases.json     # Test cases
+└── README.md           # Project documentation
 ```
 
-### 2. Test Manually (Optional)
+### 2. Open in Claude Code
 
 ```bash
-autoresearch test ./my-first-experiment/prompt.txt
+cd my-experiment
+claude-code .
 ```
 
-### 3. Run Autonomous Research
-
-```bash
-autoresearch run ./my-first-experiment -n 10
-```
-
-The agent will run 10 experiments and output:
-```
-🟢 Experiment #1: Metric = 0.7500 (Best: 0.7500) (12.3s)
-    Excellent! Metric improved by 0.7500. This change should be kept.
-
-🔴 Experiment #2: Metric = 0.7000 (Best: 0.7500) (11.8s)
-    Metric is worse than best by 0.0500. Discard this change...
-
-🟢 Experiment #3: Metric = 0.8000 (Best: 0.8000) (13.1s)
-    Excellent! Metric improved by 0.0500. This change should be kept.
-```
-
-### 4. View Results
-
-```bash
-autoresearch report ./my-first-experiment
-```
-
-## Architecture
+### 3. Tell Claude What to Do
 
 ```
-autoresearch/
-├── core/               # Core framework components
-│   ├── agent.py        # AI agent that proposes changes
-│   ├── experimenter.py # Runs experiments and captures metrics
-│   ├── historian.py    # Tracks all experiments and results
-│   ├── evaluator.py    # Evaluates and compares results
-│   └── runner.py       # Orchestrates the research loop
-├── templates/          # Domain-specific templates
-│   └── prompt/         # Prompt engineering template
-└── cli.py              # Command-line interface
+Hi! Please read program.md and let's start the autonomous research.
 ```
 
-## Templates
+Claude will then:
+- Read the current `prompt.txt`
+- Run a baseline evaluation
+- Start iterating on the prompt
+- Report progress after each experiment
+- Stop when it reaches the goal or budget
 
-### Prompt Engineering (Included)
+### 4. Review Results
 
-Optimize LLM system prompts for specific tasks:
-
-```bash
-autoresearch init-prompt ./sentiment-analysis \\
-  --task "Classify text sentiment" \\
-  --eval-cases ./sentiment_cases.json
-```
-
-### Coming Soon
-
-- **ML Training** - Hyperparameter optimization and architecture search
-- **Web Performance** - Optimize for Lighthouse scores, bundle size
-- **SQL Optimization** - Automatic query tuning
-- **Docker Optimization** - Minimize image size and build time
+After the research session, check the final `prompt.txt` to see the optimized result.
 
 ## How It Works
 
@@ -122,14 +69,13 @@ autoresearch init-prompt ./sentiment-analysis \\
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  1. Agent reads program.md and current target file          │
-│  2. Agent proposes changes to target file                   │
-│  3. Experimenter runs the experiment                        │
-│  4. Evaluator compares result against best                  │
+│  1. Claude reads program.md and current target file          │
+│  2. Claude proposes a small change to target file           │
+│  3. Claude runs the evaluation command                      │
+│  4. Claude checks if metric improved                        │
 │  5. If better: keep changes                                 │
 │     If worse: revert to best                                │
-│  6. Historian records everything                           │
-│  7. Repeat until max_experiments or time budget            │
+│  6. Repeat until max_experiments or time budget            │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -139,82 +85,103 @@ autoresearch init-prompt ./sentiment-analysis \\
 |-----------|-------------|
 | **Single file to modify** | The agent only touches one file, keeping diffs reviewable |
 | **Fixed time budget** | Each experiment runs for the same duration, enabling fair comparison |
-| **Self-contained** | Minimal dependencies, easy to run anywhere |
-| **Observable** | Full history of all experiments with rollback capability |
+| **Claude Code native** | Leverages Claude Code's full capabilities for autonomous research |
+| **Simple and observable** | Minimal dependencies, easy to run anywhere |
 
-## Configuration
+## Available Research Types
 
-### Agent Config
+### Prompt Optimization
 
-```python
-from autoresearch.core import AgentConfig
+Optimize LLM system prompts for specific tasks:
 
-config = AgentConfig(
-    provider="anthropic",  # or "openai"
-    model="claude-sonnet-4-20250514",
-    max_experiments=100,
-    time_budget_seconds=300,  # 5 minutes per experiment
-)
+```bash
+python setup.py prompt ./sentiment-analysis \
+  --task "Classify text sentiment as positive, negative, or neutral" \
+  --eval-cases ./examples/sentiment-classification/eval_cases.json \
+  --max-experiments 20 \
+  --time 30
 ```
 
-### Custom Experimenter
+### ML Hyperparameter Tuning
 
-```python
-from autoresearch.core import Experimenter, ResearchRunner
+Optimize machine learning model configurations:
 
-class MyExperimenter(Experimenter):
-    def run(self, experiment):
-        # Your custom experiment logic
-        result = my_custom_function()
-        return ExperimentResult(
-            metric=result["score"],
-            metadata=result,
-        )
-
-runner = ResearchRunner(
-    work_dir="./my-experiment",
-    target_file="my_file.py",
-)
-runner.experimenter = MyExperimenter(...)
-runner.run()
+```bash
+python setup.py ml ./training-experiment \
+  --task "Optimize neural network for MNIST classification" \
+  --dataset "https://example.com/mnist.pkl" \
+  --max-experiments 15 \
+  --time 45
 ```
 
-## Output
+### RAG Optimization
 
-After running experiments, you'll find:
+Optimize Retrieval-Augmented Generation pipelines:
 
+```bash
+python setup.py rag ./rag-experiment \
+  --task "Optimize RAG for technical documentation Q&A" \
+  --eval-cases ./rag_eval_cases.json \
+  --max-experiments 20 \
+  --time 30
 ```
-.autoresearch/
-├── history.json     # Complete experiment history
-└── report.txt       # Human-readable summary
+
+**Optimizes:** Chunk size, overlap, top-k retrieval, reranking, and generation parameters.
+
+### Tool/Function Calling
+
+Optimize tool descriptions and function calling prompts:
+
+```bash
+python setup.py tools ./agent-experiment \
+  --task "Optimize tool selection for web search agent" \
+  --eval-cases ./tool_scenarios.json \
+  --max-experiments 15 \
+  --time 25
 ```
 
-Example report:
+**Optimizes:** Tool descriptions, parameter documentation, system prompts, and tool ordering.
 
+## Setup Script Options
+
+```bash
+python setup.py <type> <output_dir> [options]
+
+Types:
+  prompt     Prompt optimization for LLM tasks
+  ml         ML hyperparameter tuning
+  rag        RAG pipeline optimization
+  tools      Tool/function calling optimization
+
+Options:
+  --task, -t              Task description (required)
+  --eval-cases, -e        Evaluation cases JSON file (for prompt, rag, tools types)
+  --dataset, -d           Dataset URL (for ML type)
+  --max-experiments, -n   Maximum number of experiments (default: 20)
+  --time-budget           Total time budget in minutes (default: 30)
 ```
-# AutoResearch Summary
 
-Total Experiments: 10
-Best Metric: 0.8500 (Experiment #7)
-Total Duration: 123.4s
+## Example: Sentiment Classification
 
-┌──────┬───────────┬──────────┬──────────────────────────────┐
-│  #   │  Metric   │ Duration │         Description          │
-├──────┼───────────┼──────────┼──────────────────────────────┤
-│  7   │  0.8500   │  12.3s   │ Added few-shot examples...   │
-│  3   │  0.8000   │  11.8s   │ Clarified output format...   │
-│  1   │  0.7500   │  13.1s   │ Initial prompt structure...  │
-└──────┴───────────┴──────────┴──────────────────────────────┘
+The `examples/sentiment-classification/` directory contains a complete example for prompt optimization.
+
+To try it:
+```bash
+cd examples/sentiment-classification
+claude-code .
 ```
+
+Then tell Claude: "Please read program.md and let's start the autonomous research."
+
+## Requirements
+
+- Python 3.10+
+- [Claude Code](https://claude.ai/code) - The Claude CLI tool
+- uv (for dependency management in research projects)
 
 ## Contributing
 
-Contributions are welcome! Areas to contribute:
-
-1. **New templates** - Add support for new domains
-2. **Better agents** - Implement advanced strategies
-3. **Evaluation metrics** - Add more sophisticated evaluation
-4. **Visualizations** - Build dashboards and charts
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 
@@ -223,7 +190,7 @@ MIT License - feel free to use this for your own projects.
 ## Acknowledgments
 
 - Inspired by [Andrej Karpathy's autoresearch](https://github.com/karpathy/autoresearch)
-- Built with [Anthropic](https://www.anthropic.com) and [OpenAI](https://www.openai.com) APIs
+- Built for [Claude Code](https://claude.ai/code)
 
 ---
 

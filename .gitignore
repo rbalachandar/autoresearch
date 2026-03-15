@@ -48,3 +48,12 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
+
+# Test directories
+test-*
+/tmp
+
+# Coverage
+.coverage
+htmlcov/
+*.cover
