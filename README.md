@@ -69,13 +69,13 @@ After the research session, check the final `prompt.txt` to see the optimized re
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  1. Claude reads program.md and current target file          │
+│  1. Claude reads program.md and current target file         │
 │  2. Claude proposes a small change to target file           │
 │  3. Claude runs the evaluation command                      │
 │  4. Claude checks if metric improved                        │
 │  5. If better: keep changes                                 │
 │     If worse: revert to best                                │
-│  6. Repeat until max_experiments or time budget            │
+│  6. Repeat until max_experiments or time budget             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
