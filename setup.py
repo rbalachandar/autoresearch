@@ -12,9 +12,6 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-# Default model for evaluations
-DEFAULT_MODEL = "claude-sonnet-4-20250514"
-
 
 def create_prompt_research(
     output_dir: Path,
@@ -64,28 +61,72 @@ def create_prompt_research(
 """Evaluate a prompt against test cases."""
 
 import json
+import os
 import sys
+import time
+from datetime import datetime
 from pathlib import Path
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
 try:
-    from anthropic import Anthropic
+    from openai import OpenAI
 except ImportError:
-    print("Error: anthropic package not installed. Run: pip install anthropic")
+    print("Error: openai package not installed. Run: pip install openai")
     sys.exit(1)
+
+def save_result(metric, work_dir):
+    """Save evaluation result to .autoresearch/results.json"""
+    results_dir = work_dir / ".autoresearch"
+    results_dir.mkdir(exist_ok=True)
+
+    results_file = results_dir / "results.json"
+
+    # Load existing results or create new
+    if results_file.exists():
+        data = json.loads(results_file.read_text())
+    else:
+        data = {{
+            "experiments": [],
+            "best_metric": 0.0,
+            "best_experiment": 0
+        }}
+
+    # Determine if this is an improvement
+    is_improvement = metric > data["best_metric"]
+
+    # Create experiment record
+    experiment = {{
+        "number": len(data["experiments"]) + 1,
+        "metric": metric,
+        "timestamp": datetime.now().isoformat(),
+        "is_improvement": is_improvement
+    }}
+
+    data["experiments"].append(experiment)
+
+    if is_improvement:
+        data["best_metric"] = metric
+        data["best_experiment"] = experiment["number"]
+
+    # Save results
+    results_file.write_text(json.dumps(data, indent=2))
+
+    return experiment["number"], is_improvement
 
 def main():
     """Run the evaluation."""
+    work_dir = Path(__file__).parent
+
     # Load the prompt
-    prompt = (Path(__file__).parent / "prompt.txt").read_text()
+    prompt = (work_dir / "prompt.txt").read_text()
 
     # Load evaluation cases
-    eval_cases = json.loads((Path(__file__).parent / "eval_cases.json").read_text())
+    eval_cases = json.loads((work_dir / "eval_cases.json").read_text())
 
-    # Initialize client
-    client = Anthropic()
+    # Initialize client (supports OpenAI-compatible APIs)
+    client = OpenAI()
+
+    # Get model from env or use default
+    model = os.getenv("LLM_MODEL", "gpt-4o-mini")
 
     # Run evaluation
     correct = 0
@@ -95,15 +136,17 @@ def main():
         input_text = case["input"]
         expected = case["expected"]
 
-        response = client.messages.create(
-            model="{DEFAULT_MODEL}",
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {{"role": "system", "content": prompt}},
+                {{"role": "user", "content": input_text}}
+            ],
             max_tokens=1024,
             temperature=0.0,
-            system=prompt,
-            messages=[{{"role": "user", "content": input_text}}],
         )
 
-        output = response.content[0].text
+        output = response.choices[0].message.content
 
         # Check if expected value is in output
         if isinstance(expected, str):
@@ -124,13 +167,16 @@ def main():
 
     accuracy = correct / total if total > 0 else 0
 
+    # Save result to .autoresearch/results.json
+    exp_num, is_improvement = save_result(accuracy, work_dir)
+
     # Print result (this is what autoresearch looks for)
     print(f"METRIC: {{accuracy:.4f}}")
     print(f"Correct: {{correct}}/{{total}}")
     print(f"Accuracy: {{accuracy:.2%}}")
+    print(f"Experiment: #{{exp_num}} {{'(✨ New Best!)' if is_improvement else ''}}")
 
 if __name__ == "__main__":
-    import time
     start = time.time()
 
     main()
@@ -408,7 +454,7 @@ enable_rerank: false
 rerank_top_k: 3
 
 # Generation
-model: "{DEFAULT_MODEL}"
+model: "gpt-4o-mini"  # Can be overridden in eval script
 max_tokens: 1024
 temperature: 0.0
 """
@@ -463,10 +509,53 @@ def evaluate_rag(eval_cases, config):
 
     return correct / total if total > 0 else 0
 
+def save_result(metric, work_dir):
+    """Save evaluation result to .autoresearch/results.json"""
+    from datetime import datetime
+
+    results_dir = work_dir / ".autoresearch"
+    results_dir.mkdir(exist_ok=True)
+
+    results_file = results_dir / "results.json"
+
+    # Load existing results or create new
+    if results_file.exists():
+        data = json.loads(results_file.read_text())
+    else:
+        data = {{
+            "experiments": [],
+            "best_metric": 0.0,
+            "best_experiment": 0
+        }}
+
+    # Determine if this is an improvement
+    is_improvement = metric > data["best_metric"]
+
+    # Create experiment record
+    experiment = {{
+        "number": len(data["experiments"]) + 1,
+        "metric": metric,
+        "timestamp": datetime.now().isoformat(),
+        "is_improvement": is_improvement
+    }}
+
+    data["experiments"].append(experiment)
+
+    if is_improvement:
+        data["best_metric"] = metric
+        data["best_experiment"] = experiment["number"]
+
+    # Save results
+    results_file.write_text(json.dumps(data, indent=2))
+
+    return experiment["number"], is_improvement
+
 def main():
     """Run RAG evaluation."""
+    work_dir = Path(__file__).parent
+
     # Load evaluation cases
-    eval_cases_path = Path(__file__).parent / "eval_cases.json"
+    eval_cases_path = work_dir / "eval_cases.json"
     if eval_cases_path.exists():
         eval_cases = json.loads(eval_cases_path.read_text())
     else:
@@ -484,6 +573,10 @@ def main():
     print(f"Correct: {{int(accuracy * len(eval_cases))}}/{{len(eval_cases)}}")
     print(f"Accuracy: {{accuracy:.2%}}")
     print(f"Config: top_k={{config.get('top_k')}}, chunk_size={{config.get('chunk_size')}}")
+
+    # Save result to .autoresearch/results.json
+    exp_num, is_improvement = save_result(accuracy, work_dir)
+    print(f"Experiment: #{{exp_num}} {{'(✨ New Best!)' if is_improvement else ''}}")
 
 if __name__ == "__main__":
     start = time.time()
@@ -650,45 +743,82 @@ system_prompt: |
     # Create tools config file
     (output_dir / "tools_config.yaml").write_text(tools_config)
 
-    # Create tool evaluation script
+    # Create tool evaluation script with real LLM-based selection
     tools_eval_script = f'''#!/usr/bin/env python3
-"""Evaluate tool calling configuration."""
+"""Evaluate tool calling configuration using real LLM for selection."""
 
 import json
 import time
+import os
 import yaml
 from pathlib import Path
+
+try:
+    from openai import OpenAI
+except ImportError:
+    print("Error: openai package not installed. Run: pip install openai")
+    import sys
+    sys.exit(1)
 
 # Load config
 config = yaml.safe_load((Path(__file__).parent / "tools_config.yaml").read_text())
 
-def simulate_tool_call(query, config):
-    """Simulate tool selection and calling."""
-    # In real implementation, this would use Claude's tool use API
-    # For simulation, extract keywords from query
-    query_lower = query.lower()
+def get_llm_client():
+    """Get OpenAI client (works with OpenAI-compatible APIs)."""
+    # Uses OPENAI_API_KEY, OPENAI_BASE_URL environment variables
+    # Supports: OpenAI, Anthropic, Together, Azure, local models, etc.
+    return OpenAI()
 
-    # Simple keyword matching for simulation
+def select_tool_with_llm(query, config):
+    """Use LLM to select the appropriate tool based on descriptions."""
     tools = config.get("tools", [])
-    selected_tool = None
+    system_prompt = config.get("system_prompt", "You are a helpful assistant.")
 
-    for tool in tools:
-        if "search" in query_lower and "web" in tool["name"]:
-            selected_tool = tool["name"]
-            break
-        elif "calc" in query_lower or "math" in query_lower:
-            if "calculator" in tool["name"]:
-                selected_tool = tool["name"]
-                break
-        elif "file" in query_lower or "read" in query_lower:
-            if "file" in tool["name"]:
-                selected_tool = tool["name"]
-                break
+    # Build tool descriptions for the prompt
+    tools_desc = "\\n".join([
+        f"- {{tool['name']}}: {{tool.get('description', 'No description')}}"
+        for tool in tools
+    ])
 
-    return selected_tool or "no_tool"
+    prompt = f"""You have access to the following tools:
+
+{{tools_desc}}
+
+Given the user request: "{{query}}"
+
+Select the most appropriate tool to use. Respond with ONLY the tool name (e.g., "web_search", "calculator", "file_reader"). If no tool is appropriate, respond with "no_tool"."""
+
+    try:
+        client = get_llm_client()
+
+        # Get model from env or use default
+        model = os.getenv("LLM_MODEL", "gpt-4o-mini")
+
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {{"role": "system", "content": system_prompt}},
+                {{"role": "user", "content": prompt}}
+            ],
+            max_tokens=100,
+            temperature=0.0,
+        )
+
+        selected_tool = response.choices[0].message.content.strip().lower()
+
+        # Extract just the tool name if LLM adds extra text
+        for tool in tools:
+            if tool["name"] in selected_tool:
+                return tool["name"]
+
+        return selected_tool if selected_tool in [t["name"] for t in tools] else "no_tool"
+
+    except Exception as e:
+        print(f"Error calling LLM: {{e}}")
+        return "no_tool"
 
 def evaluate_tools(eval_cases, config):
-    """Evaluate tool selection on test cases."""
+    """Evaluate tool selection on test cases using real LLM."""
     correct = 0
     total = len(eval_cases)
 
@@ -696,35 +826,92 @@ def evaluate_tools(eval_cases, config):
         query = case["query"]
         expected_tool = case["expected_tool"]
 
-        # Simulate tool selection
-        selected_tool = simulate_tool_call(query, config)
+        # Use LLM for tool selection
+        selected_tool = select_tool_with_llm(query, config)
 
-        if selected_tool == expected_tool:
+        # Case-insensitive comparison
+        if selected_tool.lower() == expected_tool.lower():
             correct += 1
+        else:
+            print(f"  Query: {{query}}")
+            print(f"  Expected: {{expected_tool}}, Got: {{selected_tool}}")
 
     return correct / total if total > 0 else 0
 
+def save_result(metric, work_dir):
+    """Save evaluation result to .autoresearch/results.json"""
+    from datetime import datetime
+
+    results_dir = work_dir / ".autoresearch"
+    results_dir.mkdir(exist_ok=True)
+
+    results_file = results_dir / "results.json"
+
+    # Load existing results or create new
+    if results_file.exists():
+        data = json.loads(results_file.read_text())
+    else:
+        data = {{
+            "experiments": [],
+            "best_metric": 0.0,
+            "best_experiment": 0
+        }}
+
+    # Determine if this is an improvement
+    is_improvement = metric > data["best_metric"]
+
+    # Create experiment record
+    experiment = {{
+        "number": len(data["experiments"]) + 1,
+        "metric": metric,
+        "timestamp": datetime.now().isoformat(),
+        "is_improvement": is_improvement
+    }}
+
+    data["experiments"].append(experiment)
+
+    if is_improvement:
+        data["best_metric"] = metric
+        data["best_experiment"] = experiment["number"]
+
+    # Save results
+    results_file.write_text(json.dumps(data, indent=2))
+
+    return experiment["number"], is_improvement
+
 def main():
     """Run tool evaluation."""
+    work_dir = Path(__file__).parent
+
     # Load evaluation cases
-    eval_cases_path = Path(__file__).parent / "eval_cases.json"
+    eval_cases_path = work_dir / "eval_cases.json"
     if eval_cases_path.exists():
         eval_cases = json.loads(eval_cases_path.read_text())
     else:
         # Default test cases
         eval_cases = [
-            {{"query": "Search for the latest AI news", "expected_tool": "web_search"}},
-            {{"query": "Calculate 25 * 4", "expected_tool": "calculator"}},
-            {{"query": "Read the config file", "expected_tool": "file_reader"}},
+            {{"query": "What's the weather like today?", "expected_tool": "web_search"}},
+            {{"query": "Calculate 15% of 250", "expected_tool": "calculator"}},
+            {{"query": "Show me the contents of data.json", "expected_tool": "file_reader"}},
+            {{"query": "Who won the world series last year?", "expected_tool": "web_search"}},
+            {{"query": "What is 2^10?", "expected_tool": "calculator"}},
         ]
+
+    print(f"Evaluating {{len(eval_cases)}} test cases with LLM-based tool selection...")
+    print()
 
     # Run evaluation
     accuracy = evaluate_tools(eval_cases, config)
 
     # Print metric
+    print()
     print(f"METRIC: {{accuracy:.4f}}")
     print(f"Correct: {{int(accuracy * len(eval_cases))}}/{{len(eval_cases)}}")
     print(f"Accuracy: {{accuracy:.2%}}")
+
+    # Save result to .autoresearch/results.json
+    exp_num, is_improvement = save_result(accuracy, work_dir)
+    print(f"Experiment: #{{exp_num}} {{'(✨ New Best!)' if is_improvement else ''}}")
 
     # Count tools
     num_tools = len(config.get("tools", []))
@@ -815,10 +1002,18 @@ if __name__ == "__main__":
 
 Claude can optimize in `tools_config.yaml`:
 
-- **Tool descriptions**: More precise descriptions improve tool selection
+- **Tool descriptions**: More precise descriptions improve LLM tool selection
 - **Parameter descriptions**: Better parameter docs improve usage
 - **System prompt**: Instructions for when and how to use tools
 - **Tool order**: The sequence tools are presented
+
+## How Evaluation Works
+
+This evaluation uses **real LLM-based tool selection** (not simulation):
+- Sends each query to Claude with your tool descriptions
+- Claude selects the appropriate tool based on descriptions
+- Compares selection against expected tool
+- Better descriptions = better tool selection accuracy
 
 ## Manual Testing
 

@@ -54,6 +54,31 @@ After: [new metric]
 Status: ✅ improved / ❌ worse / ⚠️  no change
 ```
 
+## Storing Results
+
+**Important:** Save your experiment results to track progress!
+
+Create and update `.autoresearch/results.json` after each experiment:
+
+```json
+{
+  "experiments": [
+    {
+      "number": 1,
+      "description": "Added few-shot examples",
+      "metric_before": 0.75,
+      "metric_after": 0.80,
+      "status": "improved",
+      "timestamp": "2026-03-15T12:00:00"
+    }
+  ],
+  "best_metric": 0.80,
+  "best_experiment": 1
+}
+```
+
+This creates a permanent record of your research that you can review later.
+
 ## Getting Started
 
 1. First, read the current target file to understand what you're working with

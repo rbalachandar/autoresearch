@@ -39,6 +39,8 @@ my-experiment/
 └── README.md           # Project documentation
 ```
 
+![my-experiment](images/my-experiment.png)
+
 ### 2. Open in Claude Code
 
 ```bash
@@ -59,9 +61,15 @@ Claude will then:
 - Report progress after each experiment
 - Stop when it reaches the goal or budget
 
+![claude-run](images/claude-run.png)
+
+![experiment#1](images/experiment%231.png)
+
 ### 4. Review Results
 
 After the research session, check the final `prompt.txt` to see the optimized result.
+
+![result-summary](images/result-summary.png)
 
 ## How It Works
 

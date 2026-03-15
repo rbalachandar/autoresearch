@@ -4,7 +4,3 @@ version = "0.1.0"
 description = "Claude Code mode for autonomous AI agent research"
 readme = "README.md"
 requires-python = ">=3.10"
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
